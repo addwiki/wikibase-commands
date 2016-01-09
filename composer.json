@@ -1,0 +1,27 @@
+{
+	"name": "addwiki/wikibase-commands",
+	"type": "library",
+	"description": "A library containing Wikibase commands",
+	"keywords": ["Wikibase"],
+	"license": "GPL-2.0+",
+	"authors": [
+		{
+			"name": "Addshore"
+			"name": "Lucie-Aimée Kaffee"
+		}
+	],
+	"require": {
+		"symfony/console": "~3.0",
+		"addwiki/mediawiki-api": "~0.6.0-dev",
+		"addwiki/mediawiki-api-base": "~2.0",
+		"addwiki/mediawiki-datamodel": "~0.6.0"
+	},
+	"minimum-stability":"dev",
+	"prefer-stable": true,
+	"autoload": {
+		"psr-4": {
+			"Addwiki\\Commands\\Wikibase\\": "src/"
+		},
+		"files": ["addCommands.php"]
+	}
+}
