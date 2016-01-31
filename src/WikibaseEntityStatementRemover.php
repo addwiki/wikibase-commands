@@ -83,7 +83,7 @@ class WikibaseEntityStatementRemover extends Command {
 		$defaultUser = $this->appConfig->offsetGet( 'defaults.user' );
 
 		$this
-			->setName( 'wm:wd:rm-statement' )
+			->setName( 'wb:rm-statement' )
 			->setDescription( 'Removes statements using the given property' )
 			->addOption(
 				'user',
