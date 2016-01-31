@@ -2,6 +2,6 @@
 
 $GLOBALS['awwCommands'][] = function ( $awwConfig ) {
 	return array(
-		new \Addwiki\Commands\Wikibase\WikidataEntityStatementRemover( $awwConfig ),
+		new \Addwiki\Commands\Wikibase\WikibaseEntityStatementRemover( $awwConfig ),
 	);
 };

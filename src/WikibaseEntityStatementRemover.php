@@ -24,7 +24,7 @@ use Wikibase\DataModel\Entity\PropertyId;
  *
  * @todo convert this script to be not wikidata specific....
  */
-class WikidataEntityStatementRemover extends Command {
+class WikibaseEntityStatementRemover extends Command {
 
 	private $appConfig;
 
