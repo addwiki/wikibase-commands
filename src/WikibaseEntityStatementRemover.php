@@ -45,22 +45,24 @@ class WikibaseEntityStatementRemover extends Command {
 
 	public function __construct( ArrayAccess $appConfig ) {
 		$this->appConfig = $appConfig;
+		parent::__construct( null );
+	}
 
+	private function setServices( $wikibaseApiUrl, $sparqlEndpoint ) {
 		$defaultGuzzleConf = array(
 			'headers' => array( 'User-Agent' => 'addwiki - Wikibase Statement Remover' )
 		);
 		$guzzleClient = new Client( $defaultGuzzleConf );
 		$this->sparqlQueryRunner = new SparqlQueryRunner(
 			$guzzleClient,
-			//TODO pass in the query endpoint as an options / use a configured site!
-			'https://query.wikidata.org/bigdata/namespace/wdq/sparql'
+			$sparqlEndpoint
 		);
 
-		//TODO pass in a wikidata URL as an option? / use a configured site!
-		$this->wikibaseApi = new MediawikiApi( "https://www.wikidata.org/w/api.php" );
+		$this->wikibaseApi = new MediawikiApi( $wikibaseApiUrl );
 		$this->wikibaseFactory = new WikibaseFactory(
 			$this->wikibaseApi,
 			new DataValueDeserializer(
+				//TODO note: this list will not be the same for all wikibases... fixme!!!
 				array(
 					'boolean' => 'DataValues\BooleanValue',
 					'number' => 'DataValues\NumberValue',
@@ -76,15 +78,28 @@ class WikibaseEntityStatementRemover extends Command {
 			),
 			new DataValueSerializer()
 		);
-		parent::__construct( null );
 	}
 
 	protected function configure() {
+		$defaultWiki = $this->appConfig->offsetGet( 'defaults.wiki' );
 		$defaultUser = $this->appConfig->offsetGet( 'defaults.user' );
 
 		$this
 			->setName( 'wb:rm-statement' )
 			->setDescription( 'Removes statements using the given property' )
+			->addOption(
+				'wiki',
+				null,
+				( $defaultWiki === null ? InputOption::VALUE_REQUIRED : InputOption::VALUE_OPTIONAL),
+				'The configured wiki to use',
+				$defaultWiki
+			)
+			->addOption(
+				'sparql',
+				null,
+				InputOption::VALUE_REQUIRED,
+				'The SPARQL endpoint to use'
+			)
 			->addOption(
 				'user',
 				null,
@@ -107,6 +122,19 @@ class WikibaseEntityStatementRemover extends Command {
 		if ( $userDetails === null ) {
 			throw new RuntimeException( 'User not found in config' );
 		}
+
+		$wiki = $input->getOption( 'wiki' );
+		$wikiDetails = $this->appConfig->offsetGet( 'wikis.' . $wiki );
+		if ( $wikiDetails === null ) {
+			throw new RuntimeException( 'Wiki not found in config' );
+		}
+
+		$sparql = $input->getOption( 'sparql' );
+		if ( $sparql === null || empty( $sparql ) ) {
+			throw new RuntimeException( 'SPARQL endpoint must be passed' );
+		}
+
+		$this->setServices( $wikiDetails['url'], $sparql );
 
 		$propertyString = $input->getOption( 'property' );
 		$property = new PropertyId( $propertyString );
