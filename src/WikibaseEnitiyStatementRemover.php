@@ -9,6 +9,7 @@ use DataValues\Serializers\DataValueSerializer;
 use GuzzleHttp\Client;
 use Mediawiki\Api\ApiUser;
 use Mediawiki\Api\MediawikiApi;
+use Mediawiki\DataModel\EditInfo;
 use RuntimeException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -20,6 +21,8 @@ use Wikibase\DataModel\Entity\PropertyId;
 /**
  * @author Addshore
  * @author Lucie-Aimée Kaffee
+ *
+ * @todo convert this script to be not wikidata specific....
  */
 class WikidataEntityStatementRemover extends Command {
 
@@ -44,11 +47,16 @@ class WikidataEntityStatementRemover extends Command {
 		$this->appConfig = $appConfig;
 
 		$defaultGuzzleConf = array(
-			'headers' => array( 'User-Agent' => 'addwiki - Wikibase Reference As Statement Remover' )
+			'headers' => array( 'User-Agent' => 'addwiki - Wikibase Statement Remover' )
 		);
 		$guzzleClient = new Client( $defaultGuzzleConf );
-		$this->sparqlQueryRunner = new SparqlQueryRunner( $guzzleClient );
+		$this->sparqlQueryRunner = new SparqlQueryRunner(
+			$guzzleClient,
+			//TODO pass in the query endpoint as an options / use a configured site!
+			'https://query.wikidata.org/bigdata/namespace/wdq/sparql'
+		);
 
+		//TODO pass in a wikidata URL as an option? / use a configured site!
 		$this->wikibaseApi = new MediawikiApi( "https://www.wikidata.org/w/api.php" );
 		$this->wikibaseFactory = new WikibaseFactory(
 			$this->wikibaseApi,
@@ -75,8 +83,8 @@ class WikidataEntityStatementRemover extends Command {
 		$defaultUser = $this->appConfig->offsetGet( 'defaults.user' );
 
 		$this
-			->setName( 'wm:wd:reference-as-statement-remove' )
-			->setDescription( 'Removes a statement whos property is only for references' )
+			->setName( 'wm:wd:rm-statement' )
+			->setDescription( 'Removes statements using the given property' )
 			->addOption(
 				'user',
 				null,
@@ -94,7 +102,6 @@ class WikidataEntityStatementRemover extends Command {
 	}
 
 	protected function execute( InputInterface $input, OutputInterface $output ) {
-		// Get options
 		$user = $input->getOption( 'user' );
 		$userDetails = $this->appConfig->offsetGet( 'users.' . $user );
 		if ( $userDetails === null ) {
@@ -115,29 +122,37 @@ class WikidataEntityStatementRemover extends Command {
 		$itemIds = $this->sparqlQueryRunner->getItemIdsFromQuery(
 			$queryBuilder
 			->select( '?item' )
-			->where( '?item', 'wdt:' . $propertyString, '?date' )
+			->where( '?item', 'wdt:' . $propertyString, '?value' )
 			->limit( 10000 )
 			->__toString()
 		);
 
-		// Log in to Wikidata
 		$loggedIn =
 			$this->wikibaseApi->login( new ApiUser( $userDetails['username'], $userDetails['password'] ) );
 		if ( !$loggedIn ) {
-			$output->writeln( 'Failed to log in to wikidata wiki' );
+			$output->writeln( 'Failed to log in to wikibase wiki' );
 			return -1;
 		}
 
 		$itemLookup = $this->wikibaseFactory->newItemLookup();
 
+		$statementRemover = $this->wikibaseFactory->newStatementRemover();
+
 		foreach ( $itemIds as $itemId ) {
-			$output->write( $itemId->getSerialization() . ' ' );
 			$item = $itemLookup->getItemForId( $itemId );
 
 			foreach ( $item->getStatements()->getIterator() as $statement ) {
-				//@todo Remove statemement
 				if( $statement->getPropertyId()->equals( $property ) ) {
-					$item->getStatements->removeStatementsWithGuid( $statement-getGuid() );
+
+					$statementRemover->remove(
+						$statement,
+						new EditInfo(
+							//TODO allow a user defined statement
+							//TODO allow bot flag?
+							'Removing Statement'
+						)
+					);
+
 				}
 			}
 		}
